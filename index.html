@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTG Market Movers: Data Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Merriweather', 'serif'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'slide-up': 'slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #030712; color: #e5e7eb; overflow-x: hidden; }
+        
+        .mtg-card-container { perspective: 1000px; opacity: 0; animation: slideUp 0.6s ease-out forwards; }
+        
+        .mtg-card {
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+            border-radius: 4.75%; overflow: hidden; background-color: #1f2937; position: relative; cursor: pointer;
+        }
+        
+        .mtg-card::after {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 4.75%; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15); pointer-events: none; z-index: 10;
+        }
+        
+        .mtg-card:hover {
+            transform: translateY(-8px) scale(1.05) rotateX(5deg);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 0 15px rgba(16, 185, 129, 0.2); z-index: 20;
+        }
+
+        .card-image { transition: opacity 0.5s ease; opacity: 1; }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #030712; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        
+        .streak-badge { animation: pulse-glow-hot 2s infinite; }
+        @keyframes pulse-glow-hot {
+            0%, 100% { box-shadow: 0 0 10px rgba(249,115,22,0.8), inset 0 0 5px rgba(249,115,22,0.5); transform: scale(1); }
+            50% { box-shadow: 0 0 20px rgba(249,115,22,1), inset 0 0 10px rgba(249,115,22,0.8); transform: scale(1.05); }
+        }
+
+        .drop-streak-badge { animation: pulse-glow-cold 2s infinite; }
+        @keyframes pulse-glow-cold {
+            0%, 100% { box-shadow: 0 0 10px rgba(6,182,212,0.8), inset 0 0 5px rgba(6,182,212,0.5); transform: scale(1); }
+            50% { box-shadow: 0 0 20px rgba(6,182,212,1), inset 0 0 10px rgba(6,182,212,0.8); transform: scale(1.05); }
+        }
+
+        .trend-insight { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+        .nav-btn.active { border-bottom: 2px solid #10b981; color: #10b981; background-color: rgba(16, 185, 129, 0.1); }
+        
+        .article-content h1 { font-size: 2.25rem; font-weight: 800; color: #fff; margin-bottom: 1.5rem; margin-top: 2rem; line-height: 1.2; }
+        .article-content h2 { font-size: 1.5rem; font-weight: 700; color: #34d399; margin-bottom: 1rem; margin-top: 2.5rem; border-bottom: 1px solid #1f2937; padding-bottom: 0.5rem;}
+        .article-content h3 { font-size: 1.25rem; font-weight: 700; color: #93c5fd; margin-bottom: 1rem; margin-top: 1.5rem; }
+        .article-content p { margin-bottom: 1.25rem; color: #d1d5db; line-height: 1.7; font-size: 1.05rem; }
+        .article-content ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1.25rem; color: #d1d5db; font-size: 1.05rem; line-height: 1.6;}
+        .article-content li { margin-bottom: 0.5rem; }
+        .article-content strong { color: #f3f4f6; font-weight: 600; }
+        .article-content blockquote { border-left: 4px solid #4b5563; padding-left: 1rem; color: #9ca3af; font-style: italic; margin: 1.5rem 0; background: #111827; padding: 1rem; border-radius: 0 0.5rem 0.5rem 0; }
+        
+        .loader { border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #10b981; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="antialiased font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
+
+    <nav class="bg-gray-950/95 backdrop-blur-xl border-b border-gray-800 sticky top-0 z-50 shadow-2xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-center h-auto md:h-16 py-3 md:py-0 gap-4 md:gap-0">
+                <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-950" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                            </svg>
+                        </div>
+                        <span class="font-bold text-xl tracking-tight text-white hidden sm:block">Market Intel</span>
+                    </div>
+                </div>
+                
+                <div class="flex overflow-x-auto w-full md:w-auto hide-scroll gap-1 text-sm font-medium text-gray-400 pb-1 md:pb-0">
+                    <button onclick="switchTab('dashboard')" id="btn-dashboard" class="nav-btn active px-4 py-2 rounded-lg transition-colors hover:text-gray-200 hover:bg-gray-800/50 whitespace-nowrap">Data Dashboard</button>
+                    <button onclick="switchTab('article-sept26')" id="btn-article-sept26" class="nav-btn px-4 py-2 rounded-lg transition-colors hover:text-gray-200 hover:bg-gray-800/50 whitespace-nowrap">Sept 26 Report</button>
+                    <button onclick="switchTab('article-sept22')" id="btn-article-sept22" class="nav-btn px-4 py-2 rounded-lg transition-colors hover:text-gray-200 hover:bg-gray-800/50 whitespace-nowrap">Sept 22 Report</button>
+                    <button onclick="switchTab('article-sept19')" id="btn-article-sept19" class="nav-btn px-4 py-2 rounded-lg transition-colors hover:text-gray-200 hover:bg-gray-800/50 whitespace-nowrap">Sept 19 Report</button>
+                    <button onclick="switchTab('article-sept18')" id="btn-article-sept18" class="nav-btn px-4 py-2 rounded-lg transition-colors hover:text-gray-200 hover:bg-gray-800/50 whitespace-nowrap">Sept 18 Report</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24 relative">
+        
+        <!-- DASHBOARD TAB -->
+        <div id="dashboard" class="tab-content block animate-fade-in">
+            <header class="mb-10 border-b border-gray-800 pb-6 text-center sm:text-left">
+                <h1 class="text-3xl sm:text-5xl font-extrabold text-white leading-tight mb-3">Aggregated Market Movers</h1>
+                <p class="text-gray-400 text-lg">A consolidated, data-only view of all verified MTG price action tracked across recent reports. Click any card to expand its image.</p>
+            </header>
+
+            <div class="space-y-16">
+                <section>
+                    <h2 class="text-2xl font-bold text-emerald-400 mb-6 flex items-center gap-2 border-l-4 border-emerald-500 pl-3">
+                        🔥 High Value Spikes & Eternal Staples
+                    </h2>
+                    <div id="grid-high-value" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6"></div>
+                </section>
+
+                <section>
+                    <h2 class="text-2xl font-bold text-blue-400 mb-6 flex items-center gap-2 border-l-4 border-blue-500 pl-3">
+                        ⚔️ Standard Breakout Candidates
+                    </h2>
+                    <div id="grid-standard" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6"></div>
+                </section>
+
+                <section>
+                    <h2 class="text-2xl font-bold text-indigo-400 mb-6 flex items-center gap-2 border-l-4 border-indigo-500 pl-3">
+                        ⚙️ Modern Meta Movers
+                    </h2>
+                    <div id="grid-modern" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6"></div>
+                </section>
+
+                <section>
+                    <h2 class="text-2xl font-bold text-yellow-400 mb-6 flex items-center gap-2 border-l-4 border-yellow-500 pl-3">
+                        🪙 Penny Risers & Hidden Gems
+                    </h2>
+                    <div id="grid-penny" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6"></div>
+                </section>
+
+                <section>
+                    <h2 class="text-2xl font-bold text-fuchsia-400 mb-6 flex items-center gap-2 border-l-4 border-fuchsia-500 pl-3">
+                        🦸‍♂️ Precon Singles Watch
+                    </h2>
+                    <div id="grid-precon" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6"></div>
+                </section>
+
+                <section>
+                    <h2 class="text-2xl font-bold text-gray-300 mb-6 flex items-center gap-2 border-l-4 border-gray-400 pl-3">
+                        ⚖️ Commander Format Staples & RC Watch
+                    </h2>
+                    <div id="grid-commander" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6"></div>
+                </section>
+
+                <section>
+                    <h2 class="text-2xl font-bold text-red-400 mb-6 flex items-center gap-2 border-l-4 border-red-500 pl-3">
+                        📉 Bearish Drops & Reprint Squashes
+                    </h2>
+                    <div id="grid-bearish" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6"></div>
+                </section>
+            </div>
+        </div>
+
+        <!-- ARTICLE: SEPT 26 -->
+        <div id="article-sept26" class="tab-content hidden animate-fade-in max-w-4xl mx-auto article-content">
+            <p class="text-sm text-emerald-400 font-bold mb-2">PUBLISHED: SEPTEMBER 26, 2026</p>
+            <h1>Daily MTG Market Movers Report</h1>
+            
+            <blockquote>
+                <strong>Data window:</strong> Latest public price snapshots, articles, and community signals through Sept 25–26, 2026.<br>
+                <strong>Market status:</strong> Spoiler-driven / Precon-driven / Reprint-watch
+            </blockquote>
+
+            <h2>Executive Summary</h2>
+            <ul>
+                <li><strong>Ink-Treader Nephilim</strong> remains the headline spoiler-season event, with Guildpact copies moving from roughly $1.45 toward the $8–$10 range on the back of Nephilim Epochal and Mystery Booster Commander Edition hype.</li>
+                <li>Marvel Super Heroes’ <strong>Doom Prevails</strong> precon continues to drive strong singles interest, especially Molecule Man, Doom’s Time Platform, and key upgrade targets.</li>
+                <li>Commander and multi-format staples such as Chrome Mox (Borderless), Grave Pact, Replenish, Goblin Welder, and Wellwisher show notable gains, highlighting ongoing demand for powerful engines and mana artifacts.</li>
+                <li>Reprint pressure remains visible on popular Commander cards like Doubling Season, Skullclamp (Borderless), Dockside Extortionist, and Natural Order.</li>
+            </ul>
+
+            <div id="inline-grid-sept26-1" class="grid grid-cols-2 sm:grid-cols-4 gap-4 my-8"></div>
+
+            <h2>What Changed Since Yesterday</h2>
+            <p>Ink-Treader Nephilim’s Nephilim Epochal–driven spike is stabilizing in the mid-single-digit range but remains highly exposed to November Mystery Booster release and potential reprint announcements. Meanwhile, Reality Fracture prerelease events this weekend begin to translate spoiler hype into actual play data, particularly around legends like <strong>Whtz, the Bibliophile</strong> and Battle of Wits–enabled shells.</p>
+            
+            <p>No fresh Commander banlist changes have been posted since the February 9, 2026 update (Biorhythm and Lutri unbanned, Mana Crypt and Nadu banned), and recent communications emphasize “no changes” in the short term. Doom Prevails upgrade data from Playgroup and EDHREC continues to show players cutting weaker Villains in favor of high-impact discard and connive payoffs.</p>
+
+            <div id="inline-grid-sept26-2" class="grid grid-cols-2 sm:grid-cols-3 gap-4 my-8"></div>
+
+            <h2>Historical Signal Check</h2>
+            <ul>
+                <li><strong>Repeated confirmed movers:</strong> Ink-Treader Nephilim, Chrome Mox (Borderless), Grave Pact, Wellwisher, Prosper, Tome-Bound all show multi-day confirmation with real demand.</li>
+                <li><strong>Predictions resolved today:</strong> Earlier “Ink-Treader returns to a higher floor” predictions look Mixed—price is well above bulk but still clearly speculation-premium.</li>
+                <li><strong>Prior calls weakening:</strong> High-priced Secret Lair staples and Commander reprints (Skullclamp Borderless, Mental Misstep) are now clearly in reprint-compression territory.</li>
+            </ul>
+
+            <div id="inline-grid-sept26-3" class="grid grid-cols-2 sm:grid-cols-4 gap-4 my-8"></div>
+        </div>
+
+        <!-- ARTICLE: SEPT 22 -->
+        <div id="article-sept22" class="tab-content hidden animate-fade-in max-w-4xl mx-auto article-content">
+            <p class="text-sm text-emerald-400 font-bold mb-2">PUBLISHED: SEPTEMBER 22, 2026</p>
+            <h1>Daily MTG Market Movers Report</h1>
+            
+            <blockquote>
+                <strong>Data window:</strong> Public paper-market feeds last updated through 2026-09-21–22.<br>
+                <strong>Market status:</strong> Spoiler-driven / precon- and Secret Lair heavy.
+            </blockquote>
+
+            <h2>Executive Summary</h2>
+            <ul>
+                <li><strong>Standard remains volatile</strong> at the mythic/rare level, with cards like Samut, Tyrant of Naktamun and Omnipresence posting triple-digit weekly gains.</li>
+                <li><strong>Modern shows modest but broad-based gains</strong> in high-power artifacts and fast-mana enablers such as Mox Opal and Gemstone Caverns.</li>
+                <li>Legacy/Commander staples including Chrome Mox, Grave Pact, Food Chain, and Winter Orb show double-digit moves.</li>
+            </ul>
+
+            <div id="inline-grid-sept22-1" class="grid grid-cols-2 sm:grid-cols-4 gap-4 my-8"></div>
+
+            <h2>What Changed Since Yesterday</h2>
+            <p>Standard’s top weekly winners list is dominated by new-set cards (Samut, Tyrant of Naktamun; Omnipresence; Extrapolate the Impossible) posting 145–396% confirmed gains, indicating an aggressively shifting post-release metagame.</p>
+            <p>Modern’s weekly movers show renewed interest in Sphinx Ambassador, Akroma’s Memorial, Gemstone Caverns, and Trinisphere, suggesting increased demand for high-end value threats and prison tools.</p>
+            
+            <div id="inline-grid-sept22-2" class="grid grid-cols-2 sm:grid-cols-3 gap-4 my-8"></div>
+        </div>
+
+        <!-- ARTICLE: SEPT 19 -->
+        <div id="article-sept19" class="tab-content hidden animate-fade-in max-w-4xl mx-auto article-content">
+            <p class="text-sm text-emerald-400 font-bold mb-2">PUBLISHED: SEPTEMBER 19, 2026</p>
+            <h1>Daily Brief: Navigating Low-Liquidity Spikes</h1>
+            
+            <blockquote>
+                <strong>Data window:</strong> Most recent verified public price window available.<br>
+                <strong>Market status:</strong> Spoiler/precon-driven with selective low-liquidity caution.
+            </blockquote>
+
+            <h2>Executive Summary</h2>
+            <ul>
+                <li>Publicly visible movement is strongest in specialty printings, Secret Lair variants, older scarce printings, and a smaller set of Commander-adjacent staples.</li>
+                <li>Format-level official policy remains stable in Modern and Pauper from the latest Wizards announcement.</li>
+                <li>Doom Prevails still looks relevant as a singles-driven Commander story because community upgrade data shows concentrated adds around Leader, Super-Genius, and Norman Osborn.</li>
+            </ul>
+
+            <div id="inline-grid-sept19-1" class="grid grid-cols-2 sm:grid-cols-4 gap-4 my-8"></div>
+            
+            <h2>Actionable Close</h2>
+            <p>Strongest confirmed bullish movers from the currently verified set: Sonic Screwdriver (0186), Brushland (Classic Sixth Edition), Xorn (Secret Lair 2495), Howling Mine (Secret Lair 7046), and Wellwisher (Commander Anthology).</p>
+        </div>
+
+        <!-- ARTICLE: SEPT 18 -->
+        <div id="article-sept18" class="tab-content hidden animate-fade-in max-w-4xl mx-auto article-content">
+            <p class="text-sm text-emerald-400 font-bold mb-2">PUBLISHED: SEPTEMBER 18, 2026</p>
+            <h1>Nostalgia, Spoilers, and Sinking Floors</h1>
+            
+            <blockquote>
+                If 24 hours in MTG finance feels like a lifetime, the jump from September 17th to September 18th, 2026, is a perfect case study.
+            </blockquote>
+
+            <h2>The Ink-Treader Rollercoaster Finds a Checkpoint</h2>
+            <p>In yesterday’s report, we were watching <strong>Ink-Treader Nephilim</strong> hit a massive +450% spike on the back of the <em>Nephilim Epochal</em> spoiler. Today, the data shows that price point is holding, but the tone has shifted from <em>“Hype Cycle”</em> to <em>“Clear Reversal Risk.”</em></p>
+
+            <div id="inline-grid-sept18-1" class="grid grid-cols-2 sm:grid-cols-4 gap-4 my-8"></div>
+
+            <h2>A Pivot to the Past</h2>
+            <p>When modern staples are constantly threatened by hyper-reprints, collectors and players often park their capital in older, safer borders. The demand for retro aesthetics is real, and it creates a highly illiquid, collector-driven surge.</p>
+        </div>
+
+    </main>
+
+    <div id="image-modal" class="fixed inset-0 z-[100] hidden bg-gray-950/95 backdrop-blur-md flex items-center justify-center p-4 opacity-0 transition-opacity duration-300" onclick="if(event.target === this) closeImageModal()">
+        <button onclick="closeImageModal()" class="absolute top-4 right-4 sm:top-8 sm:right-8 text-gray-400 hover:text-emerald-400 bg-gray-900/80 hover:bg-gray-800 rounded-full p-3 transition-colors shadow-lg z-50 focus:outline-none">
+            <svg class="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        <img id="modal-image" src="" alt="Full Screen Card" class="max-h-[90vh] max-w-[95vw] sm:max-w-[80vw] object-contain rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.5)] scale-95 transition-transform duration-300">
+    </div>
+
+    <script>
+        // Massive Data Aggregation combining Sept 17th - Sept 26th
+        const marketData = {
+            highValueSpikes: [
+                { name: "Ink-Treader Nephilim", set: "gpt", price: "~$8.00-10.00", move: "+450%", streak: 12, trend: "Spoiler-season spike stabilizing. Extreme reprint exposure via upcoming Mystery Booster." },
+                { name: "Chrome Mox", set: "2xm", price: "$254.99", move: "+70.0%", streak: 9, trend: "Premium fast-mana artifact showing sustained eternal and EDH demand." },
+                { name: "Mox Diamond", set: "sth", price: "$1,449.95", move: "+38.4%", streak: 7, trend: "Premium Reserved List staple demand maintaining upward pressure." },
+                { name: "Replenish", set: "uds", price: "$250.00", move: "+58.0%", streak: 3, trend: "Enchantress combo synergies pushing old-border Reserved List higher." },
+                { name: "Grave Pact", set: "sth", price: "$47.56", move: "+82.0%", streak: 8, trend: "Stronghold printing rising. Classic old-border demand." },
+                { name: "Prosper, Tome-Bound", set: "sld", price: "$35.00", move: "+154.0%", streak: 4, trend: "Exile-matters and Treasures. Strong face-commander SL demand." },
+                { name: "Sonic Screwdriver", set: "who", price: "$2.63", move: "+155.3%", streak: 6 },
+                { name: "Forest", set: "sld", price: "$523.66", move: "+2,456.9%", trend: "Data artifact or extreme thin-supply listing. Do not chase." },
+                { name: "Goblin Welder", set: "ulg", price: "$48.00", move: "+55.0%", streak: 3, trend: "Artifact graveyard engines driving low original-supply copies." },
+                { name: "Squee, Goblin Nabob", set: "mmq", price: "$70.00", move: "+55.0%", trend: "Recurring discard synergies and nostalgia." },
+                { name: "Demonic Tutor", set: "dvd", price: "$108.00", move: "+46.0%" },
+                { name: "Show and Tell", set: "usg", price: "$62.00", move: "+37.8%", streak: 6 },
+                { name: "Winter Orb", set: "5ed", price: "$15.49", move: "+37.7%", streak: 5 },
+                { name: "Wooded Foothills", set: "ons", price: "$149.99", move: "+30.4%", streak: 5 },
+                { name: "Pact of Negation", set: "ltc", price: "$67.77", move: "+20.5%" },
+                { name: "Smothering Tithe", set: "cmm", price: "$71.22", move: "+16.3%", streak: 4 },
+                { name: "Teferi's Protection", set: "sta", price: "$101.96", move: "+12.9%" },
+                { name: "Palantír of Orthanc", set: "ltc", price: "$81.11", move: "+12.7%" },
+                { name: "Sneak Attack", set: "2xm", price: "$25.34", move: "+13.4%" },
+                { name: "Colossus of Sardia", set: "atq", price: "$34.18", move: "+12.4%" }
+            ],
+            standardBreakouts: [
+                { name: "Whtz, the Bibliophile", set: "rfra", price: "Prerelease", move: "Developing", trend: "Reality Fracture spoiler driving Battle of Wits shell hype." },
+                { name: "Samut, Tyrant of Naktamun", set: "mat", price: "$49.98", move: "+178%", streak: 6, trend: "Aggro/midrange dominance confirmed by Standard decklists." },
+                { name: "Omnipresence", set: "rfra", price: "$49.38", move: "+147%", streak: 4 },
+                { name: "Extrapolate the Impossible", set: "rfra", price: "$14.83", move: "+396%" },
+                { name: "Lich's Relic", set: "rfra", price: "$14.66", move: "+390%" },
+                { name: "Flickering Hound", set: "rfra", price: "$19.58", move: "+145%" },
+                { name: "Codie, Ravenous Codex", set: "stx", price: "$9.95", move: "+905%", trend: "Warning: Thin-supply anomaly." },
+                { name: "Frostbite Pyromental", set: "rfra", price: "$9.95", move: "+905%" },
+                { name: "Bloodthirsty Conqueror", set: "rfra", price: "$38.42", move: "+4%" },
+                { name: "Sephiroth, Fabled SOLDIER", set: "ff", price: "$31.89", move: "+4%" },
+                { name: "Uthros, Titanic Godcore", set: "rfra", price: "$15.70", move: "+5%" },
+                { name: "Rottenmouth Viper", set: "rfra", price: "$7.54", move: "+9%" },
+                { name: "Starting Town", set: "rfra", price: "$11.47", move: "+4%" },
+                { name: "Hexhaven Invigorator", set: "rfra", price: "$44.22", move: "-40%", dropStreak: 3 },
+                { name: "Pompous Battlemage", set: "rfra", price: "$3.00", move: "-81.0%", dropStreak: 5 }
+            ],
+            modernMovers: [
+                { name: "Devoted Druid", set: "shm", price: "$2.50", move: "Uptrend", streak: 7, trend: "Recurring combo staple flagged in multiple weekly reports." },
+                { name: "Ichormoon Gauntlet", set: "one", price: "$18.50", move: "Uptrend", streak: 4 },
+                { name: "Gemstone Caverns", set: "tsr", price: "$74.11", move: "+10%", streak: 6 },
+                { name: "Ranger-Captain of Eos", set: "mh1", price: "$28.00", move: "+17.9%" },
+                { name: "Subtlety", set: "mh2", price: "$16.24", move: "+15.3%" },
+                { name: "Force of Will", set: "all", price: "$91.45", move: "+13.3%" },
+                { name: "Akroma's Memorial", set: "m13", price: "$45.37", move: "+16%" },
+                { name: "Trinisphere", set: "dst", price: "$47.00", move: "+9%" },
+                { name: "Sphinx Ambassador", set: "m10", price: "$49.98", move: "+164%" },
+                { name: "Craterhoof Behemoth", set: "mm3", price: "$31.97", move: "+9%" },
+                { name: "Tezzeret the Seeker", set: "ala", price: "$32.92", move: "+6%" },
+                { name: "Defense Grid", set: "8ed", price: "$9.85", move: "+28%" },
+                { name: "Reflecting Pool", set: "shm", price: "$24.55", move: "+11%" }
+            ],
+            pennyRisers: [
+                { name: "Wellwisher", set: "cma", price: "$4.97", move: "+108.0%", streak: 7, trend: "Elf tribal revival hitting casual Commander markets." },
+                { name: "Plaguebearer", set: "exo", price: "$12.45", move: "+232.9%", trend: "Niche removal engine hitting low old-set supply." },
+                { name: "Chronatog", set: "vis", price: "$28.95", move: "+216.0%" },
+                { name: "Wall of Blossoms", set: "sth", price: "$7.00", move: "+171.0%" },
+                { name: "Chill", set: "6ed", price: "$4.36", move: "+111.7%" },
+                { name: "Hypnotic Specter", set: "ath", price: "$6.37", move: "+108.0%" },
+                { name: "Endless Foot Assault", set: "tmnt", price: "$4.29", move: "+86.5%" },
+                { name: "Seasoned Dungeoneer", set: "sld", price: "$26.50", move: "+86.9%" },
+                { name: "Natural Affinity", set: "8ed", price: "$5.30", move: "+76.7%" },
+                { name: "Ball Lightning", set: "4ed", price: "$9.18", move: "+63.1%" },
+                { name: "Alpha Deathclaw", set: "pip", price: "$3.73", move: "+61.5%" },
+                { name: "Phantom Nishoba", set: "jud", price: "$11.00", move: "+57.0%" },
+                { name: "Jackal Pup", set: "tmp", price: "$8.40", move: "+21.9%" },
+                { name: "Prismatic Strands", set: "c19", price: "$5.79", move: "+39.5%" },
+                { name: "Darksteel Citadel", set: "c21", price: "$3.84", move: "+37.6%" },
+                { name: "Pyroclasm", set: "ice", price: "$3.65", move: "+43.1%" },
+                { name: "Gyre Sage", set: "mic", price: "$3.22", move: "+45.0%" }
+            ],
+            preconWatch: [
+                { name: "Molecule Man", set: "msh", price: "Developing", move: "Uptrend", streak: 9, trend: "Universal Commander applicability and free top-deck casting pushing singles demand." },
+                { name: "Doom's Time Platform", set: "msh", price: "Developing", move: "Uptrend", streak: 7, trend: "Graveyard/suspend engine extending beyond pure Villain typal." },
+                { name: "Leader, Super-Genius", set: "msh", price: "Unverified", move: "High Upgrades", streak: 5 },
+                { name: "Norman Osborn", set: "msh", price: "Unverified", move: "High Upgrades", streak: 4 },
+                { name: "Doctor Octopus, Master Planner", set: "msh", price: "Unverified", move: "High Upgrades" },
+                { name: "Monument to Endurance", set: "msh", price: "Unverified", move: "Developing" },
+                { name: "Archfiend of Ifnir", set: "akh", price: "Unverified", move: "Developing" },
+                { name: "Titan of Littjara", set: "lcc", price: "Unverified", move: "Developing" },
+                { name: "Nephilim Epochal", set: "mbc", price: "Prerelease", move: "Hype" }
+            ],
+            commanderStaples: [
+                { name: "Food Chain", set: "sld", price: "$64.99", move: "+12.8%", streak: 4 },
+                { name: "Ephemerate", set: "sta", price: "$58.25", move: "+8.8%" },
+                { name: "Vampiric Tutor", set: "cmr", price: "$102.50", move: "+24.9%" },
+                { name: "Rhystic Study", set: "wot", price: "$152.00", move: "+8.6%" },
+                { name: "Enchantress's Presence", set: "ons", price: "$19.03", move: "+9.4%" },
+                { name: "Snapcaster Mage", set: "uma", price: "$21.99", move: "+10.0%" },
+                { name: "Cavern of Souls", set: "lci", price: "$54.82", move: "+8.3%" },
+                { name: "Boseiju, Who Endures", set: "neo", price: "$82.87", move: "+12.9%" },
+                { name: "Mana Crypt", set: "2xm", price: "Banned", move: "Volatile", trend: "RC Ban List Watcher" },
+                { name: "Nadu, Winged Wisdom", set: "mh3", price: "Banned", move: "Volatile", trend: "RC Ban List Watcher" }
+            ],
+            bearishDrops: [
+                { name: "Doubling Season", set: "2xm", price: "$40.00", move: "-12.6%", dropStreak: 8, trend: "Multiple reprints compressing commander staple floor." },
+                { name: "Skullclamp", set: "sld", price: "$102.76", move: "-12.7%", dropStreak: 7, trend: "Borderless premium overextended against functional substitutes." },
+                { name: "Dockside Extortionist", set: "c19", price: "$16.70", move: "-10.5%", dropStreak: 8, trend: "Ban-watch chatter plus repeated printings." },
+                { name: "Natural Order", set: "ema", price: "$32.99", move: "-23.5%", dropStreak: 6 },
+                { name: "Cataclysm", set: "exo", price: "$25.00", move: "-28.6%", trend: "Social-contract issues driving demand away." },
+                { name: "Wedding Ring", set: "voc", price: "$10.30", move: "-31.3%", dropStreak: 6 },
+                { name: "Jeweled Lotus", set: "cmr", price: "$115.50", move: "-17.5%", dropStreak: 7 },
+                { name: "Beastmaster Ascension", set: "sld", price: "$26.56", move: "-20.0%", dropStreak: 6 },
+                { name: "Tarmogoyf", set: "mm2", price: "$12.67", move: "-68.0%", dropStreak: 5 },
+                { name: "Goblin Lackey", set: "usg", price: "$36.00", move: "-19.5%" },
+                { name: "Seedborn Muse", set: "cc1", price: "$27.75", move: "-14.0%" }
+            ]
+        };
+
+        let globalIdCounter = 0;
+        function generateId() { return 'card-img-' + (++globalIdCounter); }
+
+        function getFallbackSvg(name, isFake) {
+            const bgColor = isFake ? '4c1d95' : '1f2937'; 
+            const tag = isFake ? '2026 Set Release' : 'No Image Found';
+            const safeName = name.replace(/"/g, "'").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680" viewBox="0 0 488 680" fill="#${bgColor}"><rect width="488" height="680" fill="#${bgColor}"/><text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" fill="#f3f4f6" font-family="sans-serif" font-size="32" font-weight="bold">${safeName}</text><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#9ca3af" font-family="sans-serif" font-size="20">${tag}</text></svg>`;
+            return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+        }
+
+        function getMoveStyle(moveStr) {
+            if (moveStr.includes('+') || moveStr.includes('Up') || moveStr.includes('High')) {
+                return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]';
+            } else if (moveStr.includes('-') || moveStr.includes('Drop') || moveStr.includes('Banned') || moveStr.includes('Volatile')) {
+                return 'bg-red-500/20 text-red-400 border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.2)]';
+            } else {
+                return 'bg-blue-500/20 text-blue-400 border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.2)]';
+            }
+        }
+
+        function buildCardHtml(card) {
+            const moveStyle = getMoveStyle(card.move);
+            const imgId = generateId();
+
+            let streakHtml = '';
+            let cardRing = 'border border-gray-700/50 shadow-xl';
+
+            if (card.streak) {
+                streakHtml = `
+                    <div class="absolute -top-3 -right-3 z-30 streak-badge bg-gradient-to-r from-orange-600 to-red-600 text-white text-[11px] font-extrabold px-3 py-1.5 rounded-full border border-orange-300 shadow-xl flex items-center gap-1.5 pointer-events-none">
+                        <span class="text-sm">🔥</span> ${card.streak}-Day
+                    </div>
+                `;
+                cardRing = 'ring-2 ring-orange-500/80 ring-offset-2 ring-offset-gray-900 shadow-[0_0_15px_rgba(249,115,22,0.5)]';
+            } else if (card.dropStreak) {
+                streakHtml = `
+                    <div class="absolute -top-3 -right-3 z-30 drop-streak-badge bg-gradient-to-r from-cyan-600 to-blue-600 text-white text-[11px] font-extrabold px-3 py-1.5 rounded-full border border-cyan-300 shadow-xl flex items-center gap-1.5 pointer-events-none">
+                        <span class="text-sm">🥶</span> ${card.dropStreak}-Day
+                    </div>
+                `;
+                cardRing = 'ring-2 ring-cyan-500/80 ring-offset-2 ring-offset-gray-900 shadow-[0_0_15px_rgba(6,182,212,0.5)]';
+            }
+
+            const trendHtml = card.trend ? `
+                <div class="mt-2 text-[10px] sm:text-[11px] text-gray-400 bg-gray-800/80 p-2 rounded border border-gray-700 trend-insight leading-snug">
+                    <span class="text-gray-300 font-semibold">Insight:</span> ${card.trend}
+                </div>
+            ` : '';
+            
+            const isFakeSet = card.set && ['msh', 'rfra', 'tmnt', 'ff', '2026', 'mbc'].includes(card.set.toLowerCase());
+            const badgeHtml = isFakeSet ? `<div class="absolute top-2 right-2 z-20 bg-fuchsia-600/90 backdrop-blur text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm pointer-events-none">2026 SET</div>` : '';
+
+            const safeAlt = card.name.replace(/'/g, "&apos;");
+
+            const cardHtml = `
+                <div class="mtg-card-container group flex flex-col h-full relative">
+                    ${streakHtml}
+                    <div class="mtg-card relative aspect-[63/88] w-full bg-gray-800 flex items-center justify-center ${cardRing}" onclick="openImageModal(document.getElementById('${imgId}').src, '${safeAlt}')">
+                        <img id="${imgId}"
+                             src="" 
+                             alt="${safeAlt}" 
+                             class="card-image absolute inset-0 w-full h-full object-cover z-10"
+                             loading="lazy" />
+                        ${badgeHtml}
+                    </div>
+                    <div class="mt-3 flex flex-col gap-1.5 flex-grow px-1">
+                        <h4 class="text-sm font-bold text-gray-100 truncate leading-tight" title="${safeAlt}">${card.name}</h4>
+                        <div class="flex flex-wrap items-center justify-between gap-1 mt-1">
+                            <span class="text-[13px] font-bold text-gray-400 tracking-tight">${card.price}</span>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded border ${moveStyle} whitespace-nowrap">
+                                ${card.move}
+                            </span>
+                        </div>
+                        ${trendHtml}
+                    </div>
+                </div>
+            `;
+
+            return { html: cardHtml, imgId: imgId, name: card.name, set: card.set, isFake: isFakeSet };
+        }
+
+        function renderGrid(containerId, cardsData) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+
+            cardsData.forEach((card) => {
+                const built = buildCardHtml(card);
+                container.insertAdjacentHTML('beforeend', built.html);
+                
+                const imgEl = document.getElementById(built.imgId);
+                
+                if (built.isFake) {
+                    imgEl.src = getFallbackSvg(built.name, true);
+                } else {
+                    const cleanName = built.name.split(" // ")[0].split(" (")[0].trim();
+                    imgEl.src = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cleanName)}&format=image`;
+                    imgEl.onerror = function() {
+                        this.onerror = null; // prevent infinite loops
+                        this.src = getFallbackSvg(built.name, false);
+                    };
+                }
+            });
+        }
+
+        function findCard(nameStr) {
+            const query = nameStr.toLowerCase().trim();
+            for (const key of Object.keys(marketData)) {
+                const found = marketData[key].find(c => c.name.toLowerCase().includes(query));
+                if (found) return found;
+            }
+            return null;
+        }
+
+        function renderInlineGrid(containerId, cardNames) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const cardsData = cardNames.map(findCard).filter(Boolean);
+            cardsData.forEach((card) => {
+                const built = buildCardHtml(card);
+                container.insertAdjacentHTML('beforeend', built.html);
+                
+                const imgEl = document.getElementById(built.imgId);
+                
+                if (built.isFake) {
+                    imgEl.src = getFallbackSvg(built.name, true);
+                } else {
+                    const cleanName = built.name.split(" // ")[0].split(" (")[0].trim();
+                    imgEl.src = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cleanName)}&format=image`;
+                    imgEl.onerror = function() {
+                        this.onerror = null;
+                        this.src = getFallbackSvg(built.name, false);
+                    };
+                }
+            });
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.add('hidden');
+                el.classList.remove('block');
+            });
+            const activeTab = document.getElementById(tabId);
+            if(activeTab) {
+                activeTab.classList.remove('hidden');
+                activeTab.classList.add('block');
+            }
+
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                el.classList.remove('active', 'border-emerald-500', 'text-emerald-400', 'bg-emerald-500/10');
+                el.classList.add('border-transparent', 'text-gray-400');
+            });
+            const activeBtn = document.getElementById('btn-' + tabId);
+            if(activeBtn) {
+                activeBtn.classList.remove('border-transparent', 'text-gray-400');
+                activeBtn.classList.add('active', 'border-emerald-500', 'text-emerald-400', 'bg-emerald-500/10');
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function openImageModal(imgSrc, imgAlt) {
+            const modal = document.getElementById('image-modal');
+            const modalImg = document.getElementById('modal-image');
+            modalImg.src = imgSrc;
+            modalImg.alt = imgAlt;
+            modal.classList.remove('hidden');
+            void modal.offsetWidth; 
+            modal.classList.remove('opacity-0');
+            modalImg.classList.remove('scale-95');
+            modalImg.classList.add('scale-100');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('image-modal');
+            const modalImg = document.getElementById('modal-image');
+            modal.classList.add('opacity-0');
+            modalImg.classList.remove('scale-100');
+            modalImg.classList.add('scale-95');
+            document.body.style.overflow = '';
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modalImg.src = ''; 
+            }, 300);
+        }
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !document.getElementById('image-modal').classList.contains('hidden')) {
+                closeImageModal();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. Dashboard
+            renderGrid('grid-high-value', marketData.highValueSpikes);
+            renderGrid('grid-standard', marketData.standardBreakouts);
+            renderGrid('grid-modern', marketData.modernMovers);
+            renderGrid('grid-penny', marketData.pennyRisers);
+            renderGrid('grid-precon', marketData.preconWatch);
+            renderGrid('grid-commander', marketData.commanderStaples);
+            renderGrid('grid-bearish', marketData.bearishDrops);
+
+            // 2. Inline Article Grids (Fuzzy matched)
+            renderInlineGrid('inline-grid-sept26-1', ['Ink-Treader Nephilim', 'Molecule Man', 'Chrome Mox', 'Grave Pact']);
+            renderInlineGrid('inline-grid-sept26-2', ['Whtz', 'Leader, Super-Genius', 'Doom\'s Time Platform']);
+            renderInlineGrid('inline-grid-sept26-3', ['Doubling Season', 'Skullclamp', 'Dockside Extortionist']); // Removed 'Mental Misstep' as it wasn't in main lists to avoid crash
+            
+            renderInlineGrid('inline-grid-sept22-1', ['Samut', 'Omnipresence', 'Gemstone Caverns', 'Winter Orb']);
+            renderInlineGrid('inline-grid-sept22-2', ['Sphinx Ambassador', 'Akroma\'s Memorial', 'Trinisphere']);
+            
+            renderInlineGrid('inline-grid-sept19-1', ['Sonic Screwdriver', 'Howling Mine', 'Wellwisher']);
+            
+            renderInlineGrid('inline-grid-sept18-1', ['Jackal Pup', 'Wall of Blossoms']);
+        });
+    </script>
+</body>
+</html>
