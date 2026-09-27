@@ -406,6 +406,84 @@
             ]
         };
 
+        // Pre-resolved direct CDN image URLs (avoids api.scryfall.com rate limiting)
+        const SCRYFALL_IMAGES = {
+        "Ink-Treader Nephilim": "https://cards.scryfall.io/large/front/d/2/d29bb432-1ca6-4305-b6d3-d7afe06c6c69.jpg?1783943479",
+        "Chrome Mox": "https://cards.scryfall.io/large/front/f/3/f340cbf7-5bbe-45b9-a4bf-d1caa500ff93.jpg?1783930116",
+        "Mox Diamond": "https://cards.scryfall.io/large/front/b/f/bf9fecfd-d122-422f-bd0a-5bf69b434dfe.jpg?1783938445",
+        "Replenish": "https://cards.scryfall.io/large/front/7/f/7fd2fe13-bbc0-42b7-bc42-3b51910ce118.jpg?1783946084",
+        "Grave Pact": "https://cards.scryfall.io/large/front/f/5/f5a4970b-2ba6-4c91-a301-369369cdf360.jpg?1783915673",
+        "Prosper, Tome-Bound": "https://cards.scryfall.io/large/front/d/7/d743336e-d5c7-4053-a23d-92ec7581f74e.jpg?1783926259",
+        "Sonic Screwdriver": "https://cards.scryfall.io/large/front/f/1/f131027a-9776-41fa-8a5f-d9ef80e0dc2e.jpg?1783914613",
+        "Forest": "https://cards.scryfall.io/large/front/d/c/dce15387-4114-4b3e-91aa-5b42b45c44ac.jpg?1785981675",
+        "Goblin Welder": "https://cards.scryfall.io/large/front/1/7/17cd920a-de09-454a-a9da-c84512e3aff1.jpg?1783934742",
+        "Squee, Goblin Nabob": "https://cards.scryfall.io/large/front/8/a/8aabc541-ff2a-416f-a973-44eda8ec4706.jpg?1783903770",
+        "Demonic Tutor": "https://cards.scryfall.io/large/front/a/2/a24b4cb6-cebb-428b-8654-74347a6a8d63.jpg?1783915679",
+        "Show and Tell": "https://cards.scryfall.io/large/front/f/a/fa7b7897-36e0-415a-8bb7-602886164852.jpg?1783937320",
+        "Winter Orb": "https://cards.scryfall.io/large/front/a/b/ab3cec7e-513e-400d-a1a8-2c71cdde02c6.jpg?1783937538",
+        "Wooded Foothills": "https://cards.scryfall.io/large/front/4/e/4e11ea8a-f895-438d-a3b7-f070238e4161.jpg?1783911232",
+        "Pact of Negation": "https://cards.scryfall.io/large/front/1/e/1ed4c0bb-b710-44a1-b8bc-6bd11c27b8b8.jpg?1783927843",
+        "Smothering Tithe": "https://cards.scryfall.io/large/front/8/6/861b5889-0183-4bee-afeb-a4b2aa700a8e.jpg?1783915712",
+        "Teferi's Protection": "https://cards.scryfall.io/large/front/4/8/483fa1cb-1e35-44f2-a143-98c0f107f5ca.jpg?1783921926",
+        "Palantír of Orthanc": "https://cards.scryfall.io/large/front/6/e/6efb6a69-562c-4d95-858d-b067444cfd7e.jpg?1783916235",
+        "Sneak Attack": "https://cards.scryfall.io/large/front/a/4/a45b4ca9-4355-4690-84c3-a7d44c367dbf.jpg?1783918452",
+        "Colossus of Sardia": "https://cards.scryfall.io/large/front/d/0/d0926087-73cf-4aa4-80f9-6f2c54e230ec.jpg?1783941417",
+        "Samut, Tyrant of Naktamun": "https://cards.scryfall.io/large/front/6/d/6d7d8fa7-ce69-4a8c-9af0-55571393a244.jpg?1789729644",
+        "Codie, Ravenous Codex": "https://cards.scryfall.io/large/front/c/3/c3192390-1518-49fc-8716-f2c7a0384f39.jpg?1789646811",
+        "Devoted Druid": "https://cards.scryfall.io/large/front/2/2/22589a81-3ea8-4e78-98c9-c015e7539cf9.jpg?1783904550",
+        "Ichormoon Gauntlet": "https://cards.scryfall.io/large/front/2/c/2c093ce0-2561-4847-ab58-f6f1650d743e.jpg?1786522813",
+        "Gemstone Caverns": "https://cards.scryfall.io/large/front/7/f/7f273641-c5f3-48bc-b89e-3cff52d26a0b.jpg?1783927750",
+        "Ranger-Captain of Eos": "https://cards.scryfall.io/large/front/a/f/af3928b4-813a-4120-8799-de34235d60ac.jpg?1783933158",
+        "Subtlety": "https://cards.scryfall.io/large/front/7/0/701256d5-1389-48b7-9581-d6037209bd06.jpg?1783926869",
+        "Force of Will": "https://cards.scryfall.io/large/front/8/9/89f612d6-7c59-4a7b-a87d-45f789e88ba5.jpg?1789015964",
+        "Akroma's Memorial": "https://cards.scryfall.io/large/front/9/5/950ee61d-0bc1-4d7b-ba68-157061aa98eb.jpg?1783927758",
+        "Trinisphere": "https://cards.scryfall.io/large/front/3/1/316caa4e-a53a-460b-978c-5f0fba7bc549.jpg?1783930090",
+        "Sphinx Ambassador": "https://cards.scryfall.io/large/front/b/0/b0937274-d5cb-4790-8c10-804f537c5581.jpg?1783942388",
+        "Craterhoof Behemoth": "https://cards.scryfall.io/large/front/2/7/276f5cee-a501-4658-bd4d-7a044bf1ccbc.jpg?1783907345",
+        "Tezzeret the Seeker": "https://cards.scryfall.io/large/front/c/f/cf339735-eb1a-46f0-8c3e-eae06f278eca.jpg?1783938417",
+        "Defense Grid": "https://cards.scryfall.io/large/front/f/9/f939dac5-ad71-4163-adde-4f435412477c.jpg?1783943901",
+        "Reflecting Pool": "https://cards.scryfall.io/large/front/c/b/cbc4281a-b70d-4f96-b309-38e986484829.jpg?1789644471",
+        "Wellwisher": "https://cards.scryfall.io/large/front/1/9/19dbbecb-b4d0-49d2-b36e-58279e051c5c.jpg?1783936238",
+        "Plaguebearer": "https://cards.scryfall.io/large/front/a/8/a8493df6-9954-4e33-867c-ca4bcf3953b2.jpg?1783946515",
+        "Chronatog": "https://cards.scryfall.io/large/front/0/5/05ada02f-04e9-4269-b04a-97a7eaac2c46.jpg?1783947001",
+        "Wall of Blossoms": "https://cards.scryfall.io/large/front/d/f/df901113-e273-4fe0-a264-8e9e26e70905.jpg?1783907035",
+        "Chill": "https://cards.scryfall.io/large/front/2/4/24846eba-e085-4d1d-8c7a-d4faf11034a6.jpg?1783946202",
+        "Hypnotic Specter": "https://cards.scryfall.io/large/front/9/6/9695f390-f791-4d64-90b2-731d6d37df1c.jpg?1783942383",
+        "Seasoned Dungeoneer": "https://cards.scryfall.io/large/front/7/f/7fee3f76-20a8-4621-84fb-ddf79c955532.jpg?1783922514",
+        "Natural Affinity": "https://cards.scryfall.io/large/front/4/8/4847f8e8-9979-427e-999a-26711e542f82.jpg?1783943924",
+        "Ball Lightning": "https://cards.scryfall.io/large/front/5/f/5f27dbf0-6818-40ea-832d-10686b4c2900.jpg?1783908925",
+        "Alpha Deathclaw": "https://cards.scryfall.io/large/front/c/a/ca4c8b04-66af-4cb3-8003-9088d8344b20.jpg?1783912392",
+        "Phantom Nishoba": "https://cards.scryfall.io/large/front/2/2/2281a21b-fc68-46ad-b340-eb13ca0165ec.jpg?1783918430",
+        "Jackal Pup": "https://cards.scryfall.io/large/front/9/d/9d8743b2-30e3-4d15-89fc-72974747aec5.jpg?1783935144",
+        "Prismatic Strands": "https://cards.scryfall.io/large/front/e/f/efd85985-abc1-430a-9210-63109c90a82d.jpg?1783932788",
+        "Darksteel Citadel": "https://cards.scryfall.io/large/front/2/b/2ba7597d-6d76-45b8-b172-342999e401bd.jpg?1783927495",
+        "Pyroclasm": "https://cards.scryfall.io/large/front/4/3/4391b0af-2f26-4a45-9e2a-5bd8e9838107.jpg?1783909464",
+        "Gyre Sage": "https://cards.scryfall.io/large/front/b/e/be573ae7-967a-4b98-9058-ec3ff82ff63f.jpg?1783917142",
+        "Archfiend of Ifnir": "https://cards.scryfall.io/large/front/8/3/83057af6-cb88-4401-92ef-5b5d10463140.jpg?1788460948",
+        "Titan of Littjara": "https://cards.scryfall.io/large/front/6/2/62807f83-b219-4769-afdd-2870deeb93c0.jpg?1783915483",
+        "Food Chain": "https://cards.scryfall.io/large/front/e/b/eb912458-e016-4ea2-a2ea-40ac1a57f8fb.jpg?1783921868",
+        "Ephemerate": "https://cards.scryfall.io/large/front/2/d/2da5f3f8-5eef-498f-ba2c-2f3fbc3745aa.jpg?1783933164",
+        "Vampiric Tutor": "https://cards.scryfall.io/large/front/3/4/34a0203f-9cce-43a4-9cb7-8ce6647895cd.jpg?1783918468",
+        "Rhystic Study": "https://cards.scryfall.io/large/front/9/f/9f37c5b6-a59c-45cd-9a99-e9357fe9ea1b.jpg?1783919146",
+        "Enchantress's Presence": "https://cards.scryfall.io/large/front/3/f/3f50538b-f866-4e75-8856-2ad8af635011.jpg?1783915426",
+        "Snapcaster Mage": "https://cards.scryfall.io/large/front/2/2/22b36ad5-bf4d-436a-9c3c-fa4acd0052fe.jpg?1783907976",
+        "Cavern of Souls": "https://cards.scryfall.io/large/front/3/a/3aad15a2-8a1b-4460-9b06-e85863081878.jpg?1783913719",
+        "Boseiju, Who Endures": "https://cards.scryfall.io/large/front/2/1/2135ac5a-187b-4dc9-8f82-34e8d1603416.jpg?1783923818",
+        "Mana Crypt": "https://cards.scryfall.io/large/front/4/d/4d960186-4559-4af0-bd22-63baa15f8939.jpg?1783930103",
+        "Nadu, Winged Wisdom": "https://cards.scryfall.io/large/front/9/4/94b67489-5eb0-4406-9bf3-27e50dc632eb.jpg?1790212106",
+        "Doubling Season": "https://cards.scryfall.io/large/front/f/2/f2c4f80e-84a0-463b-82c3-5c6503809351.jpg?1783909062",
+        "Skullclamp": "https://cards.scryfall.io/large/front/1/d/1d8b007b-3169-4ee3-80c7-781fc096fc7a.jpg?1783903215",
+        "Dockside Extortionist": "https://cards.scryfall.io/large/front/9/e/9e2e3efb-75cb-430f-b9f4-cb58f3aeb91b.jpg?1783921889",
+        "Natural Order": "https://cards.scryfall.io/large/front/b/f/bfe3329c-7faa-4925-b9d2-075a1ab27e80.jpg?1783937562",
+        "Cataclysm": "https://cards.scryfall.io/large/front/7/1/713160be-bcfd-4ef5-9457-c02b926ba06e.jpg?1783938511",
+        "Wedding Ring": "https://cards.scryfall.io/large/front/7/f/7f0b1400-0608-47fd-9c73-b7730bcf6b7f.jpg?1783924997",
+        "Jeweled Lotus": "https://cards.scryfall.io/large/front/d/7/d7183700-6941-4a3d-a581-4f33bea795e9.jpg?1783915595",
+        "Beastmaster Ascension": "https://cards.scryfall.io/large/front/f/4/f404d133-fc1a-4751-ac72-554e6553e486.jpg?1783923253",
+        "Tarmogoyf": "https://cards.scryfall.io/large/front/8/b/8be5ee47-8f8a-4e3c-b1a1-9ca0e1fdec7f.jpg?1789127270",
+        "Goblin Lackey": "https://cards.scryfall.io/large/front/3/0/30104836-1e9d-4533-98f8-d5c4e6484b52.jpg?1783939274",
+        "Seedborn Muse": "https://cards.scryfall.io/large/front/7/6/76f58441-5674-4f1e-af9b-94e14ab7e619.jpg?1783907041"
+};
+
         let globalIdCounter = 0;
         function generateId() { return 'card-img-' + (++globalIdCounter); }
 
@@ -503,7 +581,8 @@
                     imgEl.src = getFallbackSvg(built.name, true);
                 } else {
                     const cleanName = built.name.split(" // ")[0].split(" (")[0].trim();
-                    imgEl.src = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cleanName)}&format=image`;
+                    const directUrl = SCRYFALL_IMAGES[cleanName];
+                    if (directUrl) { imgEl.src = directUrl; } else { imgEl.src = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cleanName)}&format=image`; }
                     imgEl.onerror = function() {
                         this.onerror = null; // prevent infinite loops
                         this.src = getFallbackSvg(built.name, false);
@@ -536,7 +615,8 @@
                     imgEl.src = getFallbackSvg(built.name, true);
                 } else {
                     const cleanName = built.name.split(" // ")[0].split(" (")[0].trim();
-                    imgEl.src = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cleanName)}&format=image`;
+                    const directUrl = SCRYFALL_IMAGES[cleanName];
+                    if (directUrl) { imgEl.src = directUrl; } else { imgEl.src = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cleanName)}&format=image`; }
                     imgEl.onerror = function() {
                         this.onerror = null;
                         this.src = getFallbackSvg(built.name, false);
